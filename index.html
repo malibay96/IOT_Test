@@ -1,59 +1,376 @@
 <!DOCTYPE html>
-<html>
+<html lang="tr">
 <head>
-<!--© 2021 Muhammed Ali Bayraktar All Rights Reserved-->
-<title>Simpicy_CSTM</title>
-<meta charset="utf-8">
-<meta http-equiv="Content-type" content="text/html; charset=utf-8" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mali'nin Atölye Envanteri</title>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --accent: #00ff9d;
+            --text: #e0e0e0;
+            --muted: #757575;
+            --border: #333;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            margin: 0;
+        }
+        h1 { color: var(--accent); letter-spacing: 1px; text-transform: uppercase; font-size: 1.5rem; margin-bottom: 20px; }
+        .container { width: 100%; max-width: 600px; }
+        
+        .search-container { position: sticky; top: 0; background: var(--bg-color); padding-bottom: 10px; z-index: 10; width: 100%; }
+        
+        input {
+            width: 100%;
+            padding: 15px;
+            font-size: 18px;
+            background: var(--card-bg);
+            border: 2px solid var(--border);
+            color: var(--text);
+            border-radius: 8px;
+            outline: none;
+            box-sizing: border-box;
+            transition: 0.3s;
+        }
+        input:focus { border-color: var(--accent); box-shadow: 0 0 10px rgba(0, 255, 157, 0.2); }
+
+        .result-card {
+            background: var(--card-bg);
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border-left: 4px solid var(--accent);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .info { display: flex; flex-direction: column; }
+        .name { font-weight: bold; font-size: 1.1rem; color: #fff; }
+        .tower { font-size: 0.85rem; color: var(--muted); margin-top: 4px; }
+        
+        .coords {
+            background: #2d2d2d;
+            color: var(--accent);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-weight: bold;
+            font-size: 1.2rem;
+            min-width: 60px;
+            text-align: center;
+            border: 1px solid var(--accent);
+        }
+        .empty-msg { text-align: center; color: var(--muted); margin-top: 20px; }
+    </style>
 </head>
-<body style="background-color: #574b8a;padding: 25px">
-<h1 style="margin-top: 0;color: #f3f3f7;font-family: Roboto, sans-serif;">Simpicy Cold Storage Temperature Monitoring</h1>
-<div>
-<iframe width="450" height="260" style="border: 1px solid #ffa949;" src="https://thingspeak.com/channels/1390674/charts/1?bgcolor=%23070c12&color=%23206cd6&dynamic=true&results=3000&timescale=10&title=So%C4%9Fuk+Hava+Deposu+S%C4%B1cakl%C4%B1%C4%9F%C4%B1&type=spline&xaxis=Saat&yaxis=S%C4%B1cakl%C4%B1k"></iframe>
-<iframe width="450" height="260" style="border: 1px solid #ffa949;" src="https://thingspeak.com/channels/1390674/widgets/323698"></iframe>
-<iframe width="450" height="260" style="border: 1px solid #ffa949;" src="https://thingspeak.com/channels/1390674/widgets/323702"></iframe>
-</div>
-<div>
-<iframe width="450" height="260" style="border: 1px solid #ffa949;" src="https://thingspeak.com/channels/1390674/charts/2?bgcolor=%23070c12&color=%23eb346b&dynamic=true&results=3000&timescale=10&title=Cihaz+i%C3%A7i+s%C4%B1cakl%C4%B1k&type=spline&xaxis=Saat&yaxis=S%C4%B1cakl%C4%B1k"></iframe>
-<iframe width="450" height="260" style="border: 1px solid #ffa949;" src="https://thingspeak.com/channels/1390674/widgets/323699"></iframe>
-</div>
-<div>
-<iframe width="450" height="260" style="border: 1px solid #ffa949;" src="https://thingspeak.com/channels/1390674/charts/3?bgcolor=%23070c12&color=%23f7e434&dynamic=true&median=10&results=3000&title=Kap%C4%B1&type=step&xaxis=Saat&yaxis=A%C3%A7%C4%B1k+%2F+Kapal%C4%B1"></iframe>
-<iframe width="450" height="260" style="border: 1px solid #ffa949;" src="https://thingspeak.com/channels/1390674/widgets/323703"></iframe>
-</div>
+<body>
+
+    <div class="container">
+        <div class="search-container">
+            <h1>Atölye Bulucu</h1>
+            <input type="text" id="searchBox" placeholder="Parça ara (örn: 10k, M3, led)..." autofocus>
+        </div>
+        <div id="results"></div>
+    </div>
+
+<script>
+    // ============================================
+    // VERİTABANI (TÜM LİSTE BURAYA GÖMÜLDÜ)
+    // ============================================
+
+const TOWER_1_DATA = `
+0 Ω;0.22 Ω;0.27 Ω;0.33 Ω
+0.5 Ω;[ETİKETSİZ];0.68 Ω;1 Ω
+1.2 Ω;1.5 Ω;1.8 Ω;2 Ω
+2.2 Ω;2.4 Ω;2.6 Ω;2.7 Ω
+3.3 Ω;3.9 Ω;4.7 Ω;5.1 Ω
+5.6 Ω;5.9 Ω;6.2 Ω;6.8 Ω
+7.5 Ω;8.2 Ω;10 Ω;12 Ω
+15 Ω;16 Ω;18 Ω;20 Ω
+22 Ω;24 Ω;33 Ω;36 Ω
+39 Ω;47 Ω;51 Ω;56 Ω
+62 Ω;68 Ω;75 Ω;82 Ω
+91 Ω;100 Ω;120 Ω;[ETİKETSİZ]
+150 Ω;160 Ω;180 Ω;220 Ω
+270 Ω;330 Ω;390 Ω;430 Ω
+470 Ω;510 Ω;560 Ω;620 Ω
+680 Ω;820 Ω;910 Ω;1 kΩ
+1.2 kΩ;1.3 kΩ;1.5 kΩ;2.2 kΩ
+2.4 kΩ;2.7 kΩ;3.3 kΩ;3.6 kΩ
+3.9 kΩ;4.02 kΩ;4.7 kΩ;5.1 kΩ
+5.6 kΩ;6.2 kΩ;6.8 kΩ;7.5 kΩ
+8.2 kΩ;9.1 kΩ;10 kΩ;12 kΩ
+13 kΩ;15 kΩ;16 kΩ;18 kΩ
+20 kΩ;22 kΩ;24 kΩ;25 kΩ
+27 kΩ;33 kΩ;36 kΩ;39 kΩ
+43 kΩ;47 kΩ;51 kΩ;56 kΩ
+62 kΩ;68 kΩ;75 kΩ;82 kΩ
+90 kΩ;[ETİKETSİZ];91 kΩ;100 kΩ
+120 kΩ;130 kΩ;150 kΩ;180 kΩ
+220 kΩ;240 kΩ;270 kΩ;300 kΩ
+330 kΩ;390 kΩ;412 kΩ;470 kΩ
+560 kΩ;680 kΩ;715 kΩ;820 kΩ
+1 MΩ;1.2 MΩ;1.5 MΩ;2.2 MΩ
+2.7 MΩ;3 MΩ;3.9 MΩ;4.7 MΩ
+5.1 MΩ;5.6 MΩ;6.8 MΩ;10 MΩ
+21.6 MΩ;56 MΩ;0.033 Ω 5W Ceramic Resistor;0.39 Ω 5W Ceramic Resistor
+0.47 Ω 5W Ceramic Resistor;0.1 Ω 5W Ceramic Resistor;1 Ω 5W Ceramic Resistor;2.2 Ω 5W Ceramic Resistor
+5.6 Ω 5W Ceramic Resistor;6.8 Ω 3W Ceramic Resistor;8.2 Ω 5W Ceramic Resistor;10 Ω 5W Ceramic Resistor
+22 Ω 5W Ceramic Resistor;68 Ω 5W Ceramic Resistor;82 Ω 5W Ceramic Resistor;100 Ω 7W Ceramic Resistor
+120 Ω 5W Ceramic Resistor;220 Ω 5W Ceramic Resistor;257 Ω 5W Ceramic Resistor;330 Ω 7W Ceramic Resistor
+Pot Nuts;500 Ω Pot.;1K Ω Pot.;2K Ω Pot.
+5K Ω Pot.;10K Ω Pot.;22K Ω Pot.;50K Ω Pot.
+100K Ω Pot.;220K Ω Pot.;500K Ω Pot.;1M Ω Pot.
+100 Ω - 495 Ω Trimpot;1 kΩ - 387 kΩ Trimpot;2.5 kΩ - 627 MΩ Trimpot;10 kΩ - 468 kΩ Trimpot
+30 kΩ - 136 kΩ Trimpot;680 kΩ - 512 MΩ Trimpot;[ETİKETSİZ];[ETİKETSİZ]
+0 Ω - 220 Ω Trimpot;0 Ω - 400 Ω Trimpot;[ETİKETSİZ];Trimmer Potentiometers Single-Turn, Horizontal to PCB 1K
+0 Ω - 2.2 kΩ Trimpot;Trimmer Potentiometers Single-Turn, Horizontal to PCB 2.2K;Trimmer Potentiometers Single-Turn, Vertical to PCB 2.5K;0 Ω - 4.7 kΩ Trimpot
+Trimmer Potentiometers Single-Turn, Horizontal to PCB 4.7K;0 Ω - 10 kΩ Trimpot;Trimmer Potentiometers Single-Turn, Vertical to PCB 10K;0 Ω - 22 kΩ Trimpot
+Trimmer Potentiometers Single-Turn, Vertical to PCB 30K;0 Ω - 47 kΩ Trimpot;0 Ω - 220 kΩ Trimpot;[ETİKETSİZ]
+0 Ω - 1 MΩ Trimpot;0 Ω - 2.2 MΩ Trimpot;4 MHz Crystal;8 MHz Crystal
+10 MHz Crystal;12 MHz Crystal;16 MHz Crystal;20 MHz Crystal
+5,8 pF;10 pF 100 Volt;10 pF;22 pF Capacitor
+68 pF Capacitor;100 pF Capacitor;102 pF;120 pF 50V Ceramic Capacitor
+1 nF;1 nF Capacitor;1.5 nF 50 Volt;1.6 nF 100 Volt
+3.9 nF Capacitor;5 nF Capacitor;10 nF;15 nF Capacitor
+16 nF;22 nF;22 nF Ceramic Capacitor;27 nF Capacitor
+30 nF;Ceramic Capacitors 33nF;33 nF 250 Volt;39 nF
+47 nF;56 nF Capacitor;62 nF;68 nF
+68 nF Capacitor;[ETİKETSİZ];100 nF Ceramic Capacitor;0,1 uF 50 Volt
+0,1 uF 100 Volt;0,1 uF 250 Volt;130 nF 63 Volt;150 nF Capacitor
+200 nF 63 Volt;0,22 uF 50 Volt;0,22 uF 63 Volt;0,22 uF 220 Volt
+220 nF 250 Volt;0,24 uF;300 nF;0,47 uF 50 Volt
+0,47 uF 63 Volt;0,47 uF 250 Volt;1 uF 35 Volt;[ETİKETSİZ]
+1 uF 63 Volt;1 uF 100 Volt;1 uF 250 Volt;1 uF 275 Volt
+1 uF 275 Volt;1 uF 275 Volt;3,3 uF 50 Volt;4.7 uF 16 Volt
+4,7 uF 63 Volt;10 uF 25 Volt;10 uF 50 Volt;10 uF 63 Volt
+22 uF 25 Volt;22 uF 50 Volt;22 uF 63 Volt;33 uF 16 Volt
+33 uF 25 Volt;33 uF 50 Volt;47 uF 16 Volt;47 uF 25 Volt
+47 uF 35 Volt;47 uF 50 Volt;47 uF 63 Volt;100 uF 16 Volt
+100 uF 25 Volt;100 uF 35 Volt;100 uF 50 Volt;100 uF 63 Volt
+100 uF 100 Volt;100 uF 160 Volt;100 uF 160 Volt;100 uF 160 Volt
+100 uF 200 Volt;100 uF 200 Volt;100 uF 200 Volt;220 uF 16 Volt
+220 uF 25 Volt;220 uF 35 Volt;220 uF 50 Volt;220 uF 50 Volt
+220 uF 63 Volt;220 uF 63 Volt;330 uF 16 Volt;330 uF 25 Volt
+330 uF 35 Volt;330 uF 50 Volt;330 uF 50 Volt;330 uF 50 Volt
+330 uF 63 Volt;330 uF 63 Volt;470 uF 16 Volt;470 uF 35 Volt
+470 uF 50 Volt;470 uF 50 Volt;470 uF 100 Volt;470 uF 100 Volt
+470 uF 100 Volt;1000 uF 16 Volt;1000 uF 25 Volt;1000 uF 35 Volt
+1000 uF 50 Volt;1000 uF 63 Volt;1200 uF 200 Volt;1200 uF 200 Volt
+1500 uF 50 Volt;2200 uF 16 Volt;2200 uF 35 Volt;2200 uF 50 Volt
+2200 uF 63 Volt;3300 uF 16 Volt;3300 uF 35 Volt;3300 uF 63 Volt
+4700 uF 16 Volt;4700 uF 25 Volt;4700 uF 35 Volt;4700 uF 50 Volt
+10000 uF 16 Volt;[ETİKETSİZ];IR Transmitter;IR LED 5mm
+Red LED 3mm;Green LED 3mm;Blue LED 3mm;Yellow LED 3mm
+[ETİKETSİZ];Red LED 5mm;Green LED 5mm;[ETİKETSİZ]
+Blue LED 5mm;Yellow LED 5mm;White LED 5mm;[ETİKETSİZ]
+RGB LED 5mm;[ETİKETSİZ];LED DISPLAY FYS-12011BS-21G;[ETİKETSİZ]
+BUZZER;[ETİKETSİZ];1N4004 Diode;1N4007 Diode
+1N5819 Diode;6A10 Diode;8.2 Volt Zener Diode;1N4448 Diode
+[ETİKETSİZ];9.1 Volt Zener Diode;10 Volt Zener Diode;12 Volt Zener Diode
+15 Volt Zener Diode;DF08M Diode Bridge;DF04M Bridge Rectifier;W10M Bridge Rectifier
+KBU406 Bridge Rectifier;KBPC3510 Bridge Rectifier;5 Volt Single Pole Relay;5 Volt Double Pole Relay
+12 Volt Single Pole Relay;12 Volt Double Pole Relay;24 Volt Single Pole Relay;24 Volt Double Pole Relay
+Fuse Holder;200 mA 5x20 mm Fuse;250 mA 5x20 mm Fuse;315 mA 5x20 mm Fuse
+500 mA 5x20 mm Fuse;630 mA 5x20 mm Fuse;1.25 A 5x20 mm Fuse;1.6 A 5x20 mm Fuse
+2 A 5x20 mm Fuse;4 A 5x20 mm Fuse;6.3 A 5x20 mm Fuse;250 mA 6x30 mm Fuse
+315 mA 6x30 mm Fuse;500 mA 6x30 mm Fuse;630 mA 6x30 mm Fuse;1.6 A 6x30 mm Fuse
+2 A 6x30 mm Fuse;2.5 A 6x30 mm Fuse;4 A 6x30 mm Fuse;6 A 6x30 mm Fuse
+[BOŞ];[BOŞ];[BOŞ];[BOŞ]
+[BOŞ];[BOŞ];[BOŞ];[BOŞ]
+[BOŞ];[BOŞ];[BOŞ];[BOŞ]
+`;
+
+const TOWER_2_DATA = `
+B136 Transistor;B237 Transistor;BC107 Transistor;BC141 Transistor
+BC160 Transistor;BC161 Transistor;BC237 Transistor;BC237-40 Transistor
+BC337 Transistor;[ETİKETSİZ];BC548 Transistor;BC558 Transistor
+BC560 Transistor;BD139 Transistor;BD140 Transistor;BD241 Transistor
+BD242 Transistor;BDX54C Transistor;ULN2003 DIP-16 BJT Bipolar Transistor;ULN2803 DIP-16 BJT Bipolar Transistor
+L7805CV Regulator;L7806CV Regulator;L7809CV Regulator;L7812CV Regulator
+L7815CV Regulator;L7824CV Regulator;L7905CV Regulator;L7912CV Regulator
+7909 Regulator;LM317T 1.2V - 37V Regulator;LM320;LM741 SOIC-8 SMD OpAmp Integration
+LM320T 1.2V - 37V Regulator;LM337T 5mA OpAmp Integrated;[ETİKETSİZ];TIC106M Thyristor 30A 600V TO-220
+TIP31 Transistor;TIP41C Transistor BJT NPN TO-220;TIP42C Transistor BJT PNP TO-220;TIP47 NPN Power Transistor
+TIP120 Low voltage NPN Power Darlington Transistor;TIP2955 Transistor BJT PNP TO-247;TLP521-1 DIP-4 Transistor Output;[ETİKETSİZ]
+IRF9540 N Channel Mosfet Driver;IRF540 N Channel Power Mosfet;IRF630 N Channel Power Mosfet;IRFZ44 N Channel Mosfet Driver
+IR2113 Mosfet Driver;[ETİKETSİZ];TDA2040V TO-220 DIP 20W Amplifier Audio Integration;TDA2052V TO-220 DIP Amplifier Audio Integration
+2N2222 Transistor;2N3055 Transistors;L298N Double Full Bridge Driver;FRP810
+LF351N DIP-8 OpAmp Integrated;LF356N DIP-8 OpAmp Integrated;LM324N 5mA 5mV OpAmp Integrated;TL062CP DIP-8 OpAmp Integrated
+TL064CN DIP-14 OpAmp Integrated;TL082CP DIP-8 OpAmp Integrated;TL084CN DIP-14 OpAmp Integrated;KA3525A SMPS Control Integration
+74LS14 DIP-14 Inverter;74LS138 DIP-16 Multiplexer;74LS47 DIP-16 BCD-7 Segment Decoder Integration;74LS164 DIP-14 Shift Register
+74HC00 DIP-14;74HC74 DIP-14 Flip Flop Integrated;NE 555 Timer DIP-8;MAX232N DIP-16 RS
+[BOŞ];[BOŞ];[BOŞ];[BOŞ]
+[BOŞ];[BOŞ];[BOŞ];[BOŞ]
+[BOŞ];[BOŞ];[BOŞ];[BOŞ]
+[BOŞ];[BOŞ];[BOŞ];[BOŞ]
+[BOŞ];[BOŞ];[BOŞ];[BOŞ]
+[BOŞ];[BOŞ];[BOŞ];[BOŞ]
+[ETİKETSİZ];Tach Buton 6x6 4.3mm;Tach Buton 6x6 7.9 mm 4 Legs;[ETİKETSİZ]
+[ETİKETSİZ];Tact Switch 90°;Tact Switch 90° (Long);[ETİKETSİZ]
+DC180 Push Button Black;DC180 Push Button Blue;DC180 Push Button Red;[ETİKETSİZ]
+Slide Switch 3 Pin;[ETİKETSİZ];Switch;[ETİKETSİZ]
+MSW-01 Micro Switch 10A 125/250VAC;[ETİKETSİZ];Mini Heat Sinks 9x9 mm;[ETİKETSİZ]
+Pin Header 1x40 12 mm. Male-Male;[ETİKETSİZ];Pin Header 1x40 15 mm. Male-Male;Pin Header 1x40 23 mm. Male-Male
+[ETİKETSİZ];Pin Header 2X40 12 mm Male-Male;Pin Header 2x40 12 mm Male-Male;Pin Header 2x40 29 mm Male-Male
+Pin Header 2X40 90° Male-Male;[ETİKETSİZ];Pin Header 1X40 90° Female-Male;Pin Header 2X40 Female-Male
+Pin Header 2X40 Female-Male;Pin Header 2X40 90° Female-Male;Mono Jack Male;Mono Jack Female
+[ETİKETSİZ];[ETİKETSİZ];Power Connector Male;Power Connector Female
+Power Connector Female;[ETİKETSİZ];[ETİKETSİZ];9 Volt Battery Connector
+[ETİKETSİZ];[ETİKETSİZ];[ETİKETSİZ];CR2032 Battery Holder
+[ETİKETSİZ];[ETİKETSİZ];[ETİKETSİZ];[ETİKETSİZ]
+[ETİKETSİZ];[ETİKETSİZ];[ETİKETSİZ];[ETİKETSİZ]
+[ETİKETSİZ];[ETİKETSİZ];[ETİKETSİZ];[ETİKETSİZ]
+Terminal Block 1 No. 2 Contact;Terminal Block 0 No. 2 Contact;[ETİKETSİZ];Terminal Block 1 No. 3 Contact
+Terminal Block 0 No. 3 Contact;Terminal Block 0 No. 2 Contact;Terminal Block 0 No. 3 Contact;Terminal Block 0 No. 4 Contact
+Terminal Block 0 No. 5 Contact;Terminal Block 0 No. 6 Contact;Terminal Block 0 No. 90° 7 Contact;Terminal Block 0 No. 90° 8 Contact
+Terminal Block 0 No. 90° 2 Contact;Terminal Block 0 No. 90° 3 Contact;Terminal Block 0 No. 90° 4 Contact;Terminal Block 0 No. 90° 5 Contact
+Terminal Block 0 No. 90° 6 Contact;Terminal Block 0 No. 7 Contact;Terminal Block 0 No. 8 Contact;D-Sub 9 Pin Male Solder Cup
+D-Sub 9 Pin Female Solder Cup;D-Sub 9 Pin Male PCB Type;D-Sub 9 Pin Female PCB Type;D-Sub 15 Pin Male Solder Cup
+D-Sub 15 Pin Female Solder Cup;D-Sub 15 Pin Male PCB Type;D-Sub 15 Pin Female PCB Type;D-Sub 9 Pin Cover
+D-Sub 9 Pin Cover;D-Sub 9 Pin Cover;D-Sub 9 Pin Cover;D-Sub 9 Pin Cover
+D-Sub 15 Pin Cover;D-Sub 15 Pin Cover;[BOŞ];[BOŞ]
+M2 X 5 Raised Head Screws;M2 X 6 Raised Head Screws;M2 X 8 Raised Head Screws;M2 X 10 Raised Head Screws
+M2 X 12 Raised Head Screws;M2 X 16 Raised Head Screws;M2 X 20 Raised Head Screws;M2 X 25 Raised Head Screws
+M2.5 X 5 Raised Head Screws;M2.5 X 6 Raised Head Screws;M2.5 X 8 Raised Head Screws;M2.5 X 10 Raised Head Screws
+M2.5 X 12 Raised Head Screws;M2.5 X 16 Raised Head Screws;M2.5 X 20 Raised Head Screws;M2.5 X 25 Raised Head Screws
+M2.5 X 30 Raised Head Screws;M3 X 5 Raised Head Screws;M3 X 6 Raised Head Screws;M3 X 8 Raised Head Screws
+M3 X 10 Raised Head Screws;M3 X 12 Raised Head Screws;M3 X 16 Raised Head Screws;M3 X 20 Raised Head Screws
+M3 X 25 Raised Head Screws;M3 X 30 Raised Head Screws;M4 X 6 Raised Head Screws;M4 X 8 Raised Head Screws
+M4 X 10 Raised Head Screws;M4 X 12 Raised Head Screws;M4 X 16 Raised Head Screws;M4 X 20 Raised Head Screws
+M4 X 25 Raised Head Screws;M4 X 30 Raised Head Screws;M5 X 8 Raised Head Screws;M5 X 10 Raised Head Screws
+M5 X 12 Raised Head Screws;M5 X 16 Raised Head Screws;M5 X 20 Raised Head Screws;M5 X 25 Raised Head Screws
+M5 X 30 Raised Head Screws;M6 X 10 Raised Head Screws;M6 X 12 Raised Head Screws;M6 X 16 Raised Head Screws
+M6 X 20 Raised Head Screws;M6 X 25 Raised Head Screws;M6 X 30 Raised Head Screws;M3 X 6 Allen Head Screws
+M3 X 8 Allen Head Screws;M3 X 10 Allen Head Screws;M3 X 12 Allen Head Screws;M3 X 16 Allen Head Screws
+M3 X 20 Allen Head Screws;M3 X 25 Allen Head Screws;M3 X 30 Allen Head Screws;M4 X 6 Allen Head Screws
+M4 X 8 Allen Head Screws;M4 X 10 Allen Head Screws;M4 X 12 Allen Head Screws;M4 X 16 Allen Head Screws
+M4 X 20 Allen Head Screws;M4 X 25 Allen Head Screws;M4 X 30 Allen Head Screws;M5 X 8 Allen Head Screws
+M5 X 10 Allen Head Screws;M5 X 12 Allen Head Screws;M5 X 16 Allen Head Screws;M5 X 20 Allen Head Screws
+M5 X 25 Allen Head Screws;M5 X 30 Allen Head Screws;M6 X 10 Allen Head Screws;M6 X 12 Allen Head Screws
+M6 X 16 Allen Head Screws;M6 X 20 Allen Head Screws;M6 X 25 Allen Head Screws;M6 X 30 Allen Head Screws
+[ETİKETSİZ];M3 X 6 Countersunk Screws;M3 X 8 Countersunk Screws;M3 X 10 Countersunk Screws
+M3 X 12 Countersunk Screws;M3 X 16 Countersunk Screws;M3 X 20 Countersunk Screws;M3 X 25 Countersunk Screws
+M3 X 30 Countersunk Screws;M4 X 8 Countersunk Screws;M4 X 10 Countersunk Screws;M4 X 12 Countersunk Screws
+M4 X 16 Countersunk Screws;M4 X 20 Countersunk Screws;M4 X 25 Countersunk Screws;M4 X 30 Countersunk Screws
+M5 X 8 Countersunk Screws;M5 X 10 Countersunk Screws;M5 X 12 Countersunk Screws;M5 X 16 Countersunk Screws
+M5 X 20 Countersunk Screws;M5 X 25 Countersunk Screws;M5 X 30 Countersunk Screws;M6 X 10 Countersunk Screws
+M6 X 12 Countersunk Screws;M6 X 16 Countersunk Screws;M6 X 20 Countersunk Screws;M6 X 25 Countersunk Screws
+M6 X 30 Countersunk Screws;[ETİKETSİZ];[ETİKETSİZ];M3 Hexagon Nut
+[ETİKETSİZ];M5 Hexagon Nut;M6 Hexagon Nut;M8 Hexagon Nut
+[ETİKETSİZ];M2X10 Countersink Screw Stainless Steel;[ETİKETSİZ];[ETİKETSİZ]
+M3X10 Countersink Screw Stainless Steel;[ETİKETSİZ];M3X30 Countersink Screw Stainless Steel;M4X8 Countersink Screw Stainless Steel
+[ETİKETSİZ];M6X10 Countersink Screw Stainless Steel;M6X20 Countersink Screw Stainless Steel;[ETİKETSİZ]
+[ETİKETSİZ];M4X8 Set Screw Stainless Steel;M4X10 Set Screw Stainless Steel;M6X8 Set Screw Stainless Steel
+M6X12 Set Screw Stainless Steel;M6X16 Set Screw Stainless Steel;[ETİKETSİZ];[ETİKETSİZ]
+[ETİKETSİZ];[ETİKETSİZ];[ETİKETSİZ];[ETİKETSİZ]
+[ETİKETSİZ];[ETİKETSİZ];[ETİKETSİZ];[ETİKETSİZ]
+[ETİKETSİZ];Torsion Spring;Extension Spring;Pressure Spring
+[ETİKETSİZ];[ETİKETSİZ];[ETİKETSİZ];[ETİKETSİZ]
+[ETİKETSİZ];[ETİKETSİZ];[ETİKETSİZ];[ETİKETSİZ]
+[BOŞ];[BOŞ];[BOŞ];[BOŞ]
+[BOŞ];[BOŞ];[BOŞ];[BOŞ]
+[BOŞ];[BOŞ];[BOŞ];[BOŞ]
+[BOŞ];[BOŞ];[BOŞ];[BOŞ]
+[BOŞ];[BOŞ];[BOŞ];[BOŞ]
+[BOŞ];[BOŞ];[BOŞ];[BOŞ]
+[BOŞ];[BOŞ];[BOŞ];[BOŞ]
+[BOŞ];[BOŞ];[BOŞ];[BOŞ]
+[BOŞ];[BOŞ];[BOŞ];[BOŞ]
+[BOŞ];[BOŞ];[BOŞ];[BOŞ]
+[BOŞ];[BOŞ];[BOŞ];[BOŞ]
+[BOŞ];[BOŞ];[BOŞ];[BOŞ]
+`;
+
+    // ============================================
+    // MOTOR KISMI (Buraya dokunma)
+    // ============================================
+
+    let inventory = [];
+
+    // Harf Dönüştürücü (0 -> A, 1 -> B ...)
+    const getColumnLetter = (index) => String.fromCharCode(65 + index);
+
+    function parseData(rawData, towerName) {
+        const lines = rawData.trim().split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        
+        lines.forEach((line, totalRowIndex) => {
+            const cols = line.split(';');
+            
+            // Yüz ve Sütun Hesabı: Her yüz 25 satırdır.
+            let faceIndex = Math.floor(totalRowIndex / 25); // 0, 1, 2, 3
+            let rowIndex = (totalRowIndex % 25) + 1; // 1'den 25'e kadar
+            let colOffset = faceIndex * 4; 
+
+            cols.forEach((item, colIndex) => {
+                if(item && item !== "[BOŞ]" && item !== "[ETİKETSİZ]") {
+                    let finalColChar = getColumnLetter(colOffset + colIndex);
+                    
+                    inventory.push({
+                        name: item,
+                        tower: towerName,
+                        face: faceIndex + 1,
+                        coords: `${finalColChar}${rowIndex}`,
+                        searchStr: item.toLowerCase()
+                    });
+                }
+            });
+        });
+    }
+
+    // Verileri Yükle
+    parseData(TOWER_1_DATA, "Kule 1 (Direnç/Kapasitör/LED)");
+    parseData(TOWER_2_DATA, "Kule 2 (Transistör/Switch/Vida)");
+
+    const searchBox = document.getElementById('searchBox');
+    const resultsArea = document.getElementById('results');
+
+    function doSearch() {
+        const query = searchBox.value.toLowerCase().trim();
+        resultsArea.innerHTML = '';
+
+        if (query.length < 2) {
+            resultsArea.innerHTML = '<div class="empty-msg">En az 2 harf girin...</div>';
+            return;
+        }
+
+        // Akıllı arama: Her kelimeyi içermeli (örn: "m3 countersunk")
+        const terms = query.split(' ');
+        
+        const results = inventory.filter(item => {
+            return terms.every(term => item.searchStr.includes(term));
+        });
+
+        if (results.length === 0) {
+            resultsArea.innerHTML = '<div class="empty-msg">Sonuç bulunamadı.</div>';
+            return;
+        }
+
+        results.forEach(item => {
+            const card = document.createElement('div');
+            card.className = 'result-card';
+            card.innerHTML = `
+                <div class="info">
+                    <span class="name">${item.name}</span>
+                    <span class="tower">${item.tower} • Yüz ${item.face}</span>
+                </div>
+                <div class="coords">${item.coords}</div>
+            `;
+            resultsArea.appendChild(card);
+        });
+    }
+
+    searchBox.addEventListener('input', doSearch);
+
+</script>
 </body>
 </html>
-
-<!--
-
-<!DOCTYPE html>
-<html>
-<head>
-<title>IOT Testing by Malibay</title>
-<meta charset="utf-8">
-<meta http-equiv="Content-type" content="text/html; charset=utf-8" />
-</head>
-<body style="background-color: #070c12;padding: 25px">
-<div>
-<iframe width="450" height="260" style="border: 1px solid #cccccc;" src="https://thingspeak.com/channels/1361620/charts/1?bgcolor=%23070c12&color=%23206cd6&dynamic=true&results=10000&timescale=10&title=DS18B20+TempSens&type=spline&xaxis=Saat&yaxis=S%C4%B1cakl%C4%B1k"></iframe>
-<iframe width="450" height="260" style="border: 1px solid #cccccc;" src="https://thingspeak.com/channels/1361620/widgets/298383"></iframe>
-</div>
-<div>
-<iframe width="450" height="260" style="border: 1px solid #cccccc;" src="https://thingspeak.com/channels/1361620/charts/4?average=10&bgcolor=%23070c12&color=%2330b5bf&dynamic=true&results=10000&title=DHT11+Temp&type=spline&xaxis=Saat&yaxis=S%C4%B1cakl%C4%B1k"></iframe>
-<iframe width="450" height="260" style="border: 1px solid #cccccc;" src="https://thingspeak.com/channels/1361620/widgets/298413"></iframe>
-</div>
-<div>
-<iframe width="450" height="260" style="border: 1px solid #cccccc;" src="https://thingspeak.com/channels/1361620/charts/3?average=10&bgcolor=%23070c12&color=%23bf3099&dynamic=true&results=10000&title=DHT11+Humidity&type=spline&xaxis=Saat&yaxis=Rutubet"></iframe>
-<iframe width="450" height="260" style="border: 1px solid #cccccc;" src="https://thingspeak.com/channels/1361620/widgets/298414"></iframe>
-</div>
-<div>
-<iframe width="450" height="260" style="border: 1px solid #cccccc;" src="https://thingspeak.com/channels/1361620/charts/2?bgcolor=%23070c12&color=%23d9d134&dynamic=true&results=10000&timescale=10&title=ON%2FOFF+Switch&type=step&xaxis=Saat&yaxis=Switch+konum"></iframe>
-<iframe width="450" height="260" style="border: 1px solid #cccccc;" src="https://thingspeak.com/channels/1361620/widgets/298384"></iframe>
-</div>
-<div>
-<b><a style="color: #e4b957; text-decoration: none;" href="https://github.com/malibay96/IOT_Test" target="_blank">Github page</a>
-</div>
-</body>
-</html>
-
--->
